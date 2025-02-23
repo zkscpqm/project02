@@ -77,12 +77,12 @@ Window::~Window() {
     std::exit(0);
 }
 
-void Window::set_platform_data(
-        bgfx::PlatformData &platform_data
-    ) {
-    // TODO: change for other platforms
-    platform_data.nwh =
-        reinterpret_cast<void *>(glfwGetCocoaWindow(this->window));
+void Window::set_platform_data(bgfx::PlatformData &platform_data) {
+#ifdef _WIN32
+    platform_data.nwh = glfwGetWin32Window(window);
+#else
+    platform_data.nwh = glfwGetCocoaWindow(window);
+#endif
 }
 
 void Window::prepare_frame() {

@@ -1,52 +1,41 @@
 # print arbitrary variables with $ make print-<name>
-print-%  : ; @echo $* = $($*)
+print-%:
+	@echo $* = $($*)
 
-UNAME_S = $(shell uname -s)
+# Compiler
+CC = gcc.exe
+ARCH = 64
 
-CC = clang++
+# Include paths
+INCFLAGS  = -I./src
+INCFLAGS += -I./lib/glm
+INCFLAGS += -I./lib/bgfx/include
+INCFLAGS += -I./lib/bx/include
+INCFLAGS += -I./lib/bimg/include
+INCFLAGS += -I./lib/glfw/include
+INCFLAGS += -I./lib/bgfx/3rdparty/fcpp
+INCFLAGS += -I./lib/tomlplusplus
+INCFLAGS += -I./lib/noise
 
-INCFLAGS  = -iquotesrc
-INCFLAGS += -Ilib/glm
-INCFLAGS += -Ilib/bgfx/include
-INCFLAGS += -Ilib/bx/include
-INCFLAGS += -Ilib/bimg/include
-INCFLAGS += -Ilib/glfw/include
-INCFLAGS += -Ilib/bgfx/3rdparty/fcpp
-INCFLAGS += -Ilib/tomlplusplus
-INCFLAGS += -Ilib/noise
-
+# Compiler flags
 CCFLAGS  = -std=c++20 -O2 -g -Wall -Wextra -Wpedantic -Wno-c99-extensions
 CCFLAGS += -Wno-unused-parameter
 CCFLAGS += $(INCFLAGS)
 
+# Linker flags
 LDFLAGS  = -lm
 LDFLAGS += $(INCFLAGS)
 
-# TODO: OSX specific
-FRAMEWORKS	= -framework QuartzCore
-FRAMEWORKS += -framework Cocoa
-FRAMEWORKS += -framework Carbon
-FRAMEWORKS += -framework Metal
-FRAMEWORKS += -framework CoreFoundation
-FRAMEWORKS += -framework IOKit
+# Windows-specific settings
+BGFX_TARGET = windows
+BGFX_DEPS_TARGET = windows
 
-BGFX_TARGET =
-
-ifeq ($(UNAME_S), Darwin)
-	LDFLAGS += $(FRAMEWORKS)
-	# TODO: select based on ($ arch)
-	BGFX_DEPS_TARGET=osx-arm64
-	BGFX_TARGET=osx-arm
-endif
-
-ifeq ($(UNAME_S), Linux)
-	BGFX_TARGET=linux
-endif
-
-SRC  = $(shell find src -name "*.cpp")
+# Source files
+SRC  = $(shell find src -type f -name "*.cpp")
 OBJ  = $(SRC:.cpp=.o)
 BIN = bin
 
+# BGFX binary path
 BGFX_BIN = lib/bgfx/.build/$(BGFX_DEPS_TARGET)/bin
 BGFX_CONFIG = Debug
 
@@ -58,14 +47,16 @@ LDFLAGS += $(BGFX_BIN)/libfcpp$(BGFX_CONFIG).a
 LDFLAGS += lib/noise/libnoise.a
 LDFLAGS += lib/glfw/src/libglfw3.a
 
-SHADERS_PATH		= res/shaders
-SHADERS				= $(shell find $(SHADERS_PATH)/* -maxdepth 1 | grep -E ".*/(vs|fs).*.sc")
-SHADERS_OUT			= $(SHADERS:.sc=.$(SHADER_TARGET).bin)
-SHADERC				= lib/bgfx/.build/$(BGFX_DEPS_TARGET)/bin/shaderc$(BGFX_CONFIG)
-SHADER_TARGET	= metal
-SHADER_PLATFORM = osx
+# Shaders
+SHADERS_PATH = res/shaders
+SHADERS = $(shell find $(SHADERS_PATH) -type f -name "*.sc")
+SHADERS_OUT = $(SHADERS:.sc=.$(SHADER_TARGET).bin)
 
-# allow for using SHADER_TARGET_xxx and SHADER_PLATFORM_xxx defines
+SHADERC = lib/bgfx/.build/$(BGFX_DEPS_TARGET)/bin/shaderc$(BGFX_CONFIG).exe
+SHADER_TARGET = dx11
+SHADER_PLATFORM = windows
+
+# Shader defines
 CCFLAGS += -DSHADER_TARGET_$(SHADER_TARGET) -DSHADER_PLATFORM_$(SHADER_PLATFORM)
 
 .PHONY: all clean
@@ -73,39 +64,47 @@ CCFLAGS += -DSHADER_TARGET_$(SHADER_TARGET) -DSHADER_PLATFORM_$(SHADER_PLATFORM)
 all: dirs libs shaders build
 
 libs:
-	export LD_PATH="$(FRAMEWORKS)"
-	cd lib/bx && make $(BGFX_DEPS_TARGET)
-	cd lib/bimg && make $(BGFX_DEPS_TARGET)
-	cd lib/bgfx && make $(BGFX_TARGET)
-	cd lib/glfw && cmake . && make
-	cd lib/noise && make
-	export LD_PATH=""
+	cd lib/bx && make mingw-gcc-$(ARCH)
+#	cd lib/bimg && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
+#	cd lib/bgfx && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
+#	cd lib/glfw && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
+#	cd lib/noise && make
 
 dirs:
-	mkdir -p ./$(BIN)
+	@mkdir -p $(BIN)
 
-# shader -> bin
+# Shader compilation
 %.$(SHADER_TARGET).bin: %.sc
-	$(SHADERC)	--type $(shell echo $(notdir $@) | cut -c 1)						\
-						  -i lib/bgfx/src											\
-							--platform $(SHADER_PLATFORM)							\
-							-p $(SHADER_TARGET)										\
-							--varyingdef $(dir $@)varying.def.sc					\
-							-f $<													\
-							-o $@
+	$(SHADERC) --type $(shell echo $(notdir $@) | cut -c 1) \
+			   -i lib/bgfx/src \
+			   --platform $(SHADER_PLATFORM) \
+			   -p $(SHADER_TARGET) \
+			   --varyingdef $(dir $@)varying.def.sc \
+			   -f $< \
+			   -o $@
 
 shaders: $(SHADERS_OUT)
 
 run: build
-	$(BIN)/game
+	$(BIN)/game.exe
 
 build: dirs shaders $(OBJ)
-	$(CC) -o $(BIN)/game $(filter %.o,$^) $(LDFLAGS)
+	$(CC) -o $(BIN)/game.exe $(filter %.o,$^) $(LDFLAGS)
 
 %.o: %.cpp
 	$(CC) -o $@ -c $< $(CCFLAGS)
 
 clean:
-	rm -rf $(shell find res/shaders -name "*.bin")
-	rm -rf $(BIN) $(OBJ)
-	rm -rf lib/glfw/CMakeCache.txt
+	rm -rf $(SHADERS_PATH)/*.bin 2>nul
+	rm -rf $(BIN)/*
+	rm -rf $(OBJ) 2>nul
+	rm -f lib/glfw/CMakeCache.txt 2>nul
+
+init:
+	git submodule update --init --recursive
+	cd lib/bgfx && git submodule update --init --recursive
+	cd lib/bx && git submodule update --init --recursive
+	cd lib/bimg && git submodule update --init --recursive
+	cd lib/glfw && git submodule update --init --recursive
+	cd lib/noise && git submodule update --init --recursive
+	cd lib/tomlplusplus && git submodule update --init --recursive
