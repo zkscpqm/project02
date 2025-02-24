@@ -31,8 +31,8 @@ BGFX_TARGET = windows
 BGFX_DEPS_TARGET = windows
 
 # Source files
-SRC  = $(shell find src -type f -name "*.cpp")
-OBJ  = $(SRC:.cpp=.o)
+SRC = $(shell find "src" -type f -name "*.cpp" 2>/dev/null)
+OBJ = $(SRC:.cpp=.o)
 BIN = bin
 
 # BGFX binary path
@@ -49,7 +49,7 @@ LDFLAGS += lib/glfw/src/libglfw3.a
 
 # Shaders
 SHADERS_PATH = res/shaders
-SHADERS = $(shell find $(SHADERS_PATH) -type f -name "*.sc")
+SHADERS = $(shell find "$(SHADERS_PATH)" -type f -name "*.sc" 2>/dev/null)
 SHADERS_OUT = $(SHADERS:.sc=.$(SHADER_TARGET).bin)
 
 SHADERC = lib/bgfx/.build/$(BGFX_DEPS_TARGET)/bin/shaderc$(BGFX_CONFIG).exe
@@ -65,7 +65,7 @@ all: dirs libs shaders build
 
 libs:
 	cd lib/bx && make mingw-gcc-$(ARCH)
-#	cd lib/bimg && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
+	#cd lib/bimg && make
 #	cd lib/bgfx && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
 #	cd lib/glfw && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
 #	cd lib/noise && make
