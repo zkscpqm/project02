@@ -65,10 +65,11 @@ all: dirs libs shaders build
 
 libs:
 	cd lib/bx && make mingw-gcc-$(ARCH)
-	#cd lib/bimg && make
-#	cd lib/bgfx && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
-#	cd lib/glfw && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
-#	cd lib/noise && make
+	cd lib/bimg && make mingw-gcc-$(ARCH)
+	cd lib/bgfx && make mingw-gcc-$(ARCH)
+	cd lib/glfw && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
+	cd lib/glm && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make
+	cd lib/noise && make
 
 dirs:
 	@mkdir -p $(BIN)
@@ -99,6 +100,11 @@ clean:
 	rm -rf $(BIN)/*
 	rm -rf $(OBJ) 2>nul
 	rm -f lib/glfw/CMakeCache.txt 2>nul
+	cd lib/bgfx && make clean
+	cd lib/bx && make clean
+	cd lib/bimg && make clean
+	cd lib/glfw && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make clean
+	cd lib/glm && mkdir -p build && cd build && cmake .. -G "MinGW Makefiles" && make clean
 
 init:
 	git submodule update --init --recursive
